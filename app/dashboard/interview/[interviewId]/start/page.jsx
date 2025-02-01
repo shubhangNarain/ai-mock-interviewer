@@ -28,8 +28,9 @@ const StartInterview = () => {
         const jsonMockResp = JSON.parse(result[0].jsonMockResp);
         console.log("Fetched jsonMockResp:", jsonMockResp);
 
-        setMockInterviewQuestion(jsonMockResp.interview_questions);
+        setMockInterviewQuestion(jsonMockResp);
         setInterviewData(result[0]);
+        console.log('Interview Data:', interviewData);
       } else {
         console.error("No interview data found.");
       }
@@ -51,6 +52,7 @@ const StartInterview = () => {
         <RecordAnswerSection
           mockInterviewQuestion={mockInterviewQuestion}
           activeQuestionIndex={activeQuestionIndex}
+          interviewData={interviewData}
         />
       </div>
     </div>

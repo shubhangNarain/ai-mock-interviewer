@@ -1,15 +1,21 @@
 "use client";
+import { db } from "@/app/utils/db";
 import { chatSession } from "@/app/utils/GeminiAIModel";
+import { UserAnswer } from "@/app/utils/schema";
 import { Button } from "@/components/ui/button";
+import { useUser } from "@clerk/nextjs";
 import { Mic, StopCircle } from "lucide-react";
+import moment from "moment";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import useSpeechToText from "react-hook-speech-to-text";
 import Webcam from "react-webcam";
 import { toast } from "sonner";
 
-function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex }) {
+function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, interviewData }) {
   const [userAnswer, setUserAnswer] = useState("");
+  const [loading, setLoading] = useState(false);
+  const {user} = useUser();
 
   const {
     error,
@@ -29,22 +35,35 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex }) {
     );
   }, [results]);
 
-  const SaveUserAnswer = async () => {
+  useEffect(() => {
+    console.log("Updated interviewData:", interviewData);
+  }, [interviewData]);
+
+  const StartStopRecording = async () => {
     if (isRecording) {
+      setLoading(true);
       stopSpeechToText();
       if (userAnswer.length < 10) {
+        setLoading(false);
         toast("Error While saving your answer, Please Record Again.");
         return;
       }
 
-      const feedbackPrompt =
+      
+    } else {
+      startSpeechToText();
+    }
+  };
+
+  const UpdateUserAnswer = async () => {
+    const feedbackPrompt =
         "Question:" +
         mockInterviewQuestion[activeQuestionIndex]?.question +
         ", User Answer:" +
         userAnswer +
         ", Depending on the question and user answer for given interview question " +
-        " please give us a rating for answer and feedback as the area of improvement, if any. " +
-        "in just 3 to 5 lines to improve it, In JSON format with rating field and feedback field.";
+        " please give us a rating for answer between 1 and 10, and feedback as the area of improvement, if any. " +
+        "in just 3 to 5 lines to improve the user's answer, In JSON format with rating field and feedback field.";
 
       const result = await chatSession.sendMessage(feedbackPrompt);
       const mockJsonResp = (result.response
@@ -52,10 +71,29 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex }) {
         .replace("```json", "")
         .replace("```", ""));
         console.log(mockJsonResp);
-    } else {
-      startSpeechToText();
-    }
-  };
+
+        const jsonFeedbackResp = JSON.parse(mockJsonResp);
+
+        const resp = await db.insert(UserAnswer)
+        .values({
+          mockIdRef: interviewData?.mockId,
+          question: mockInterviewQuestion[activeQuestionIndex]?.question,
+          correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
+          userAns: userAnswer,
+          feedback: jsonFeedbackResp?.feedback,
+          rating: jsonFeedbackResp?.rating,
+          userEmail: user?.primaryEmailAddress?.emailAddress,
+          createdAt: moment().format('DD-MM-yyyy'),
+        })
+
+        console.log("Inserted Data: ", resp);
+
+        if(resp){
+          toast("Answer Saved Successfully.");
+        }
+        setUserAnswer('');
+        setLoading(false);
+  }
 
   return (
     <div className="flex items-center justify-center flex-col">
@@ -77,7 +115,7 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex }) {
         />
       </div>
 
-      <Button variant="outline" className="my-10" onClick={SaveUserAnswer}>
+      <Button diabled={toString(loading)} variant="outline" className="my-10" onClick={StartStopRecording}>
         {isRecording ? (
           <h2 className="flex gap-2 items-center text-red-600">
             <StopCircle />
