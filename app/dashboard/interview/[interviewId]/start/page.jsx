@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import QuestionsSection from "./_components/QuestionsSection";
 import RecordAnswerSection from "./_components/RecordAnswerSection";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const StartInterview = () => {
   const params = useParams();
@@ -30,7 +32,7 @@ const StartInterview = () => {
 
         setMockInterviewQuestion(jsonMockResp);
         setInterviewData(result[0]);
-        console.log('Interview Data:', interviewData);
+        console.log("Interview Data:", interviewData);
       } else {
         console.error("No interview data found.");
       }
@@ -54,6 +56,28 @@ const StartInterview = () => {
           activeQuestionIndex={activeQuestionIndex}
           interviewData={interviewData}
         />
+      </div>
+
+      <div className="flex justify-end gap-6">
+        {activeQuestionIndex > 0 && (
+          <Button
+            onClick={() => setActiveQuestionIndex(activeQuestionIndex - 1)}
+          >
+            Previous Question
+          </Button>
+        )}
+        {activeQuestionIndex != mockInterviewQuestion?.length - 1 && (
+          <Button
+            onClick={() => setActiveQuestionIndex(activeQuestionIndex + 1)}
+          >
+            Next Question
+          </Button>
+        )}
+        {activeQuestionIndex == mockInterviewQuestion?.length - 1 && (
+          <Link href={'/dashboard/interview/'+interviewData?.mockId+'/feedback'}>
+            <Button>End Interview</Button>
+          </Link>
+        )}
       </div>
     </div>
   );

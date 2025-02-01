@@ -12,16 +12,21 @@ import useSpeechToText from "react-hook-speech-to-text";
 import Webcam from "react-webcam";
 import { toast } from "sonner";
 
-function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, interviewData }) {
+function RecordAnswerSection({
+  mockInterviewQuestion,
+  activeQuestionIndex,
+  interviewData,
+}) {
   const [userAnswer, setUserAnswer] = useState("");
   const [loading, setLoading] = useState(false);
-  const {user} = useUser();
+  const { user } = useUser();
 
   const {
     error,
     interimResult,
     isRecording,
     results,
+    setResults,
     startSpeechToText,
     stopSpeechToText,
   } = useSpeechToText({
@@ -39,61 +44,68 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
     console.log("Updated interviewData:", interviewData);
   }, [interviewData]);
 
+  // updating userAnswer to DB
+  useEffect(() => {
+    if (!isRecording && userAnswer.length > 10) {
+      UpdateUserAnswerToDb();
+    }
+    // if (userAnswer?.length < 10) {
+    //   setLoading(false);
+    //   toast("Error While saving your answer, Please Record Again.");
+    //   return;
+    // }
+  }, [userAnswer]);
+
   const StartStopRecording = async () => {
     if (isRecording) {
-      setLoading(true);
       stopSpeechToText();
-      if (userAnswer.length < 10) {
-        setLoading(false);
-        toast("Error While saving your answer, Please Record Again.");
-        return;
-      }
-
-      
     } else {
       startSpeechToText();
     }
   };
 
-  const UpdateUserAnswer = async () => {
+  const UpdateUserAnswerToDb = async () => {
+    console.log(userAnswer);
+    setLoading(true);
     const feedbackPrompt =
-        "Question:" +
-        mockInterviewQuestion[activeQuestionIndex]?.question +
-        ", User Answer:" +
-        userAnswer +
-        ", Depending on the question and user answer for given interview question " +
-        " please give us a rating for answer between 1 and 10, and feedback as the area of improvement, if any. " +
-        "in just 3 to 5 lines to improve the user's answer, In JSON format with rating field and feedback field.";
+      "Question:" +
+      mockInterviewQuestion[activeQuestionIndex]?.question +
+      ", User Answer:" +
+      userAnswer +
+      ", Depending on the question and user answer for given interview question " +
+      " please give us a rating for the user's answer between 0 and 10 based on the correctness of it, and feedback as the area of improvement, if any. " +
+      "in just 3 to 5 lines to improve the user's answer, In JSON format with rating field and feedback field.";
 
-      const result = await chatSession.sendMessage(feedbackPrompt);
-      const mockJsonResp = (result.response
-        .text()
-        .replace("```json", "")
-        .replace("```", ""));
-        console.log(mockJsonResp);
+    const result = await chatSession.sendMessage(feedbackPrompt);
+    const mockJsonResp = result.response
+      .text()
+      .replace("```json", "")
+      .replace("```", "");
+    console.log(mockJsonResp);
 
-        const jsonFeedbackResp = JSON.parse(mockJsonResp);
+    const jsonFeedbackResp = JSON.parse(mockJsonResp);
 
-        const resp = await db.insert(UserAnswer)
-        .values({
-          mockIdRef: interviewData?.mockId,
-          question: mockInterviewQuestion[activeQuestionIndex]?.question,
-          correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
-          userAns: userAnswer,
-          feedback: jsonFeedbackResp?.feedback,
-          rating: jsonFeedbackResp?.rating,
-          userEmail: user?.primaryEmailAddress?.emailAddress,
-          createdAt: moment().format('DD-MM-yyyy'),
-        })
+    const resp = await db.insert(UserAnswer).values({
+      mockIdRef: interviewData?.mockId,
+      question: mockInterviewQuestion[activeQuestionIndex]?.question,
+      correctAns: mockInterviewQuestion[activeQuestionIndex]?.answer,
+      userAns: userAnswer,
+      feedback: jsonFeedbackResp?.feedback,
+      rating: jsonFeedbackResp?.rating,
+      userEmail: user?.primaryEmailAddress?.emailAddress,
+      createdAt: moment().format("DD-MM-yyyy"),
+    });
 
-        console.log("Inserted Data: ", resp);
+    console.log("Inserted Data: ", resp);
 
-        if(resp){
-          toast("Answer Saved Successfully.");
-        }
-        setUserAnswer('');
-        setLoading(false);
-  }
+    if (resp) {
+      toast("Answer Saved Successfully.");
+      setUserAnswer("");
+      setResults([]);
+    }
+    setResults([]);
+    setLoading(false);
+  };
 
   return (
     <div className="flex items-center justify-center flex-col">
@@ -115,7 +127,12 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
         />
       </div>
 
-      <Button diabled={toString(loading)} variant="outline" className="my-10" onClick={StartStopRecording}>
+      <Button
+        diabled={toString(loading)}
+        variant="outline"
+        className="my-10"
+        onClick={StartStopRecording}
+      >
         {isRecording ? (
           <h2 className="flex gap-2 items-center text-red-600">
             <StopCircle />
@@ -128,8 +145,6 @@ function RecordAnswerSection({ mockInterviewQuestion, activeQuestionIndex, inter
           </h2>
         )}
       </Button>
-
-      <Button onClick={() => console.log(userAnswer)}>Show User answer</Button>
     </div>
   );
 }
