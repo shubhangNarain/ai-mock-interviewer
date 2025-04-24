@@ -49,11 +49,11 @@ function RecordAnswerSection({
     if (!isRecording && userAnswer.length > 10) {
       UpdateUserAnswerToDb();
     }
-    // if (userAnswer?.length < 10) {
-    //   setLoading(false);
-    //   toast("Error While saving your answer, Please Record Again.");
-    //   return;
-    // }
+    if (userAnswer?.length < 10) {
+      setLoading(false);
+      toast("Error While saving your answer, Please Record Again.");
+      return;
+    }
   }, [userAnswer]);
 
   const StartStopRecording = async () => {

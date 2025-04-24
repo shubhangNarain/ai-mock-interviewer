@@ -30,7 +30,7 @@ const StartInterview = () => {
         const jsonMockResp = JSON.parse(result[0].jsonMockResp);
         console.log("Fetched jsonMockResp:", jsonMockResp);
 
-        setMockInterviewQuestion(jsonMockResp);
+        setMockInterviewQuestion(jsonMockResp.interview_questions);
         setInterviewData(result[0]);
         console.log("Interview Data:", interviewData);
       } else {
